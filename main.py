@@ -273,35 +273,35 @@ class CrosswordGenerator:
 
         result = f"Prima parola: {first_word}\n"
         result += f"Seconda parola: {second_word}\n"
-        result += f"Lettera di incrocio: {extracted_letter_2} (posizione {extracted_letter_2_index + 1} nella prima parola, "
-        result += f"posizione {second_word.index(extracted_letter_2) + 1} nella seconda parola)\n"
+        # result += f"Lettera di incrocio: {extracted_letter_2} (posizione {extracted_letter_2_index + 1} nella prima parola, "
+        # result += f"posizione {second_word.index(extracted_letter_2) + 1} nella seconda parola)\n"
         result += f"Terza parola: {third_word}\n"
-        result += f"Lettera di incrocio: {extracted_letter_3} (posizione {extracted_letter_3_index + 1} nella prima parola, "
-        result += f"posizione {third_word.index(extracted_letter_3) + 1} nella terza parola)\n"
+        # result += f"Lettera di incrocio: {extracted_letter_3} (posizione {extracted_letter_3_index + 1} nella prima parola, "
+        # result += f"posizione {third_word.index(extracted_letter_3) + 1} nella terza parola)\n"
 
         if same_row_letters:
-            result += "Intersezioni trovate (escludendo la riga della prima parola):\n"
-            for info in same_row_letters:
-                result += f"- Riga {info['row']}: '{info['second_word_letter']}' (seconda parola) e '{info['third_word_letter']}' (terza parola), "
-                result += f"distanza: {info['distance']} colonne\n"
+            # result += "Intersezioni trovate (escludendo la riga della prima parola):\n"
+            # for info in same_row_letters:
+                # result += f"- Riga {info['row']}: '{info['second_word_letter']}' (seconda parola) e '{info['third_word_letter']}' (terza parola), "
+                # result += f"distanza: {info['distance']} colonne\n"
 
-            if selected_intersection:
-                result += f"\nIntersezione selezionata casualmente: Riga {selected_intersection['row']}\n"
+            # if selected_intersection:
+            #     result += f"\nIntersezione selezionata casualmente: Riga {selected_intersection['row']}\n"
 
             if fourth_word:
                 result += f"Quarta parola: {fourth_word}\n"
-                result += f"Inserita tra '{selected_intersection['second_word_letter']}' della seconda parola e "
-                result += f"'{selected_intersection['third_word_letter']}' della terza parola\n"
+                # result += f"Inserita tra '{selected_intersection['second_word_letter']}' della seconda parola e "
+                # result += f"'{selected_intersection['third_word_letter']}' della terza parola\n"
             else:
                 result += "Non è stato possibile trovare una quarta parola adatta.\n"
         else:
             result += "Non ci sono intersezioni valide tra la seconda e la terza parola.\n"
 
         if fifth_word:
-            result += f"\nQuinta parola: {fifth_word}\n"
-            result += f"Inserita alla riga {fifth_word_row}, colonna di inizio {fifth_word_start_col}\n"
+            result += f"Quinta parola: {fifth_word}\n"
+            # result += f"Inserita alla riga {fifth_word_row}, colonna di inizio {fifth_word_start_col}\n"
             intersection_index = third_word_col - fifth_word_start_col
-            result += f"Interseca con la terza parola alla lettera '{fifth_word[intersection_index]}' (posizione {intersection_index + 1} nella quinta parola)\n"
+            # result += f"Interseca con la terza parola alla lettera '{fifth_word[intersection_index]}' (posizione {intersection_index + 1} nella quinta parola)\n"
         else:
             result += "\nNon è stato possibile trovare una quinta parola adatta.\n"
 
@@ -351,4 +351,4 @@ class CrosswordGenerator:
 # Uso della classe
 generator = CrosswordGenerator()
 print(generator.generate_crossword())
-print(generator.to_html())
+# print(generator.to_html())
