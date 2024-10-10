@@ -1,3 +1,6 @@
+import os
+import uuid
+from datetime import datetime
 import random
 # from nltk.corpus import words
 # import nltk
@@ -19,11 +22,22 @@ class Word:
 
 class CrosswordGenerator:
     def __init__(self, grid_size=15, cell_size=75, db_config=None):
+        # Esistente...
         self.grid_size = grid_size
         self.cell_size = cell_size
         self.grid = [['_' for _ in range(grid_size)] for _ in range(grid_size)]
         self.placed_words = []  # List of placed words with additional info
         self.db_config = db_config  # Configuration for the database connection
+
+        # Crea la directory di output se non esiste
+        self.output_dir = "output"
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # Genera un GUID per questa sessione di generazione
+        self.guid = uuid.uuid4()
+
+        # Ottieni la data e l'ora corrente
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         if db_config:
             self.word_list = self.get_word_list_from_db()
@@ -540,10 +554,15 @@ class CrosswordGenerator:
         return image
 
     def save_transparent_image(self, filename="crossword_structure.png"):
+        # Aggiorniamo il nome del file con GUID e timestamp
+        filename = f"{self.guid}_{self.timestamp}_{filename}"
+        filepath = os.path.join(self.output_dir, filename)
+
+        # Genera e salva l'immagine
         image = self.generate_transparent_image()
         resized_image = self.resize_and_position_image(image)
-        resized_image.save(filename)
-        print(f"Immagine salvata come {filename}")
+        resized_image.save(filepath)
+        print(f"Immagine salvata come {filepath}")
 
     def generate_word_image(self, word):
         min_row = min(w.y for w in self.placed_words)
@@ -591,8 +610,15 @@ class CrosswordGenerator:
         for i, word in enumerate(self.placed_words):
             image = self.generate_word_image(word)
             resized_image = self.resize_and_position_image(image)
+
+            # Aggiungiamo GUID e timestamp al nome dell'immagine
+            filename = f"{self.guid}_{self.timestamp}_crossword_word_{i + 1}.png"
+            filepath = os.path.join(self.output_dir, filename)
+
+            resized_image.save(filepath)
             images.append(resized_image)
-            resized_image.save(f"crossword_word_{i + 1}.png")
+            print(f"Generated and saved image: {filepath}")
+
         print(f"Generate {len(images)} immagini per le parole del cruciverba.")
         return images
 
@@ -642,8 +668,5 @@ db_config = {
 # Uso della classe
 generator = CrosswordGenerator(db_config=db_config)
 generator.generate_crossword()
-# print(generator.generate_crossword())
-# print(generator.to_html())
-# generator.generate_html_stages()
 generator.save_transparent_image()
 generator.generate_all_word_images()
