@@ -298,34 +298,6 @@ class CrosswordGenerator:
             print(f"Generated {filename}")
 
     def generate_html_word(self, num_words_to_show):
-        html = f"""
-        <html>
-        <head>
-            <style>
-                table {{ border-collapse: collapse; }}
-                td {{ 
-                    width: 30px; 
-                    height: 30px; 
-                    text-align: center; 
-                    vertical-align: middle; 
-                    font-size: 20px;
-                    font-weight: bold;
-                    border: 1px solid #000;
-                }}
-                td.empty, td.hidden {{ 
-                    background-color: transparent; 
-                    border: none;
-                }}
-                td.visible {{
-                    background-color: white;
-                    border: none;
-                }}
-            </style>
-        </head>
-        <body>
-            <table>
-        """
-
         visible_cells = set()
         all_word_cells = set()
 
@@ -345,14 +317,48 @@ class CrosswordGenerator:
                 else:
                     visible_cells.add((word.x, word.y + i))
 
-        print(visible_cells)
+        # Trova le righe e colonne non vuote
+        non_empty_rows = set(y for _, y in all_word_cells)
+        non_empty_cols = set(x for x, _ in all_word_cells)
 
-        for i, row in enumerate(self.grid):
+        # Crea una mappa delle coordinate originali alle nuove coordinate
+        row_map = {orig: new for new, orig in enumerate(sorted(non_empty_rows))}
+        col_map = {orig: new for new, orig in enumerate(sorted(non_empty_cols))}
+
+        # Genera l'HTML
+        html = f"""
+        <html>
+        <head>
+            <style>
+                table {{ border-collapse: collapse; }}
+                td {{ 
+                    width: 30px; 
+                    height: 30px; 
+                    text-align: center; 
+                    vertical-align: middle; 
+                    font-size: 20px;
+                    font-weight: bold;
+                }}
+                td.empty, td.hidden {{ 
+                    background-color: transparent; 
+                    border: none;
+                }}
+                td.visible {{
+                    background-color: white;
+                    border: 1px solid #000;
+                }}
+            </style>
+        </head>
+        <body>
+            <table>
+        """
+
+        for orig_y in sorted(non_empty_rows):
             html += "<tr>"
-            for j, cell in enumerate(row):
-                if (j, i) in visible_cells:
-                    html += f'<td class="visible">{cell}</td>'
-                elif (j, i) in all_word_cells:
+            for orig_x in sorted(non_empty_cols):
+                if (orig_x, orig_y) in visible_cells:
+                    html += f'<td class="visible">{self.grid[orig_y][orig_x]}</td>'
+                elif (orig_x, orig_y) in all_word_cells:
                     html += '<td class="hidden"></td>'
                 else:
                     html += '<td class="empty"></td>'
@@ -366,6 +372,21 @@ class CrosswordGenerator:
         return html
 
     def generate_html_schema(self, num_words_to_show):
+        all_word_cells = set()
+
+        # Raccoglie tutte le celle occupate da parole
+        for word in self.placed_words:
+            for i in range(len(word.text)):
+                if word.is_horizontal:
+                    all_word_cells.add((word.x + i, word.y))
+                else:
+                    all_word_cells.add((word.x, word.y + i))
+
+        # Trova le righe e colonne non vuote
+        non_empty_rows = set(y for _, y in all_word_cells)
+        non_empty_cols = set(x for x, _ in all_word_cells)
+
+        # Genera l'HTML
         html = f"""
         <html>
         <head>
@@ -380,11 +401,11 @@ class CrosswordGenerator:
                     font-weight: bold;
                     border: 1px solid #000;
                 }}
-                td.empty, td.hidden {{ 
+                td.empty {{ 
                     background-color: transparent; 
                     border: none;
                 }}
-                td.visible {{
+                td.word {{
                     background-color: white;
                     color: white;
                 }}
@@ -394,34 +415,11 @@ class CrosswordGenerator:
             <table>
         """
 
-        visible_cells = set()
-        all_word_cells = set()
-
-        # Raccoglie tutte le celle occupate da parole
-        for word in self.placed_words:
-            for i in range(len(word.text)):
-                if word.is_horizontal:
-                    all_word_cells.add((word.x + i, word.y))
-                else:
-                    all_word_cells.add((word.x, word.y + i))
-
-        # Determina le celle visibili in base al numero di parole da mostrare
-        for word in self.placed_words[:num_words_to_show]:
-            for i in range(len(word.text)):
-                if word.is_horizontal:
-                    visible_cells.add((word.x + i, word.y))
-                else:
-                    visible_cells.add((word.x, word.y + i))
-
-        print(visible_cells)
-
-        for i, row in enumerate(self.grid):
+        for orig_y in sorted(non_empty_rows):
             html += "<tr>"
-            for j, cell in enumerate(row):
-                if (j, i) in visible_cells:
-                    html += f'<td class="visible">{cell}</td>'
-                elif (j, i) in all_word_cells:
-                    html += '<td class="hidden"></td>'
+            for orig_x in sorted(non_empty_cols):
+                if (orig_x, orig_y) in all_word_cells:
+                    html += f'<td class="word">{self.grid[orig_y][orig_x]}</td>'
                 else:
                     html += '<td class="empty"></td>'
             html += "</tr>"
