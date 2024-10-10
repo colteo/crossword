@@ -2,7 +2,8 @@ import random
 from nltk.corpus import words
 import nltk
 from dataclasses import dataclass
-from PIL import Image, ImageDraw, ImageFont
+import imgkit
+import os
 
 nltk.download('words', quiet=True)
 
@@ -276,33 +277,55 @@ class CrosswordGenerator:
         self.grid_size = len(new_grid)
 
     def generate_html_stages(self):
-        html_schema = self.generate_html_schema(len(self.placed_words))
-        filename = f"crossword_html_schema.html"
-        with open(filename, "w") as f:
-            f.write(html_schema)
+        config = imgkit.config(wkhtmltoimage=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe')
 
-        # stages = [
-        #     self.to_html(1),  # Cruciverba con parola: 1
-        # ]
-        stages = [
-            self.generate_html_word(1),  # Cruciverba con parola: 1
-            self.generate_html_word(2),  # Cruciverba con parola: 1, 2
-            self.generate_html_word(3),  # Cruciverba con parola: 1, 2, 3
-            self.generate_html_word(4),  # Cruciverba con parola: 1, 2, 3, 4
-            self.generate_html_word(5),  # Cruciverba con parola: 1, 2, 3, 4, 5
-        ]
+        # Genera lo schema completo
+        schema_html, cell_size, grid_width, grid_height = self.generate_html_schema()
+        schema_html_filename = "crossword_schema.html"
+        schema_png_filename = "crossword_schema.png"
 
-        for i, html in enumerate(stages):
-            filename = f"crossword_stage_{i}.html"
-            with open(filename, "w") as f:
+        with open(schema_html_filename, "w", encoding='utf-8') as f:
+            f.write(schema_html)
+
+        # Opzioni per imgkit con dimensioni dinamiche
+        options = {
+            'format': 'png',
+            'quality': 100,
+            'width': grid_width,
+            'height': grid_height,
+            'enable-local-file-access': None
+        }
+
+        try:
+            imgkit.from_file(schema_html_filename, schema_png_filename, options=options, config=config)
+            print(f"Generated {schema_png_filename}")
+        except Exception as e:
+            print(f"Error generating {schema_png_filename}: {str(e)}")
+        finally:
+            os.remove(schema_html_filename)
+
+        # Genera le fasi progressive
+        for i in range(1, 6):
+            html, _, width, height = self.generate_html_word(i)
+            html_filename = f"crossword_stage_{i}.html"
+            png_filename = f"crossword_stage_{i}.png"
+
+            with open(html_filename, "w", encoding='utf-8') as f:
                 f.write(html)
-            print(f"Generated {filename}")
 
-    def generate_html_word(self, num_words_to_show):
-        visible_cells = set()
+            options['width'] = width
+            options['height'] = height
+
+            try:
+                imgkit.from_file(html_filename, png_filename, options=options, config=config)
+                print(f"Generated {png_filename}")
+            except Exception as e:
+                print(f"Error generating {png_filename}: {str(e)}")
+            finally:
+                os.remove(html_filename)
+
+    def generate_html_schema(self):
         all_word_cells = set()
-
-        # Raccoglie tutte le celle occupate da parole
         for word in self.placed_words:
             for i in range(len(word.text)):
                 if word.is_horizontal:
@@ -310,7 +333,70 @@ class CrosswordGenerator:
                 else:
                     all_word_cells.add((word.x, word.y + i))
 
-        # Determina le celle visibili in base al numero di parole da mostrare
+        min_x = min(x for x, _ in all_word_cells)
+        max_x = max(x for x, _ in all_word_cells)
+        min_y = min(y for _, y in all_word_cells)
+        max_y = max(y for _, y in all_word_cells)
+
+        cell_size = 30  # Dimensione della cella in pixel
+
+        html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ background-color: green; margin: 0; padding: 0; }}
+                table {{ border-collapse: collapse; }}
+                td {{ 
+                    width: {cell_size}px; 
+                    height: {cell_size}px; 
+                    text-align: center; 
+                    vertical-align: middle; 
+                    font-size: 20px;
+                    font-weight: bold;
+                }}
+                td.empty {{ 
+                    background-color: transparent; 
+                    border: none;
+                }}
+                td.word {{
+                    background-color: white;
+                    border: 1px solid #000;
+                }}
+            </style>
+        </head>
+        <body>
+            <table>
+        """
+
+        for y in range(min_y, max_y + 1):
+            html += "<tr>"
+            for x in range(min_x, max_x + 1):
+                if (x, y) in all_word_cells:
+                    html += f'<td class="word"></td>'
+                else:
+                    html += '<td class="empty"></td>'
+            html += "</tr>"
+
+        html += """
+            </table>
+        </body>
+        </html>
+        """
+        grid_width = (max_x - min_x + 1) * cell_size
+        grid_height = (max_y - min_y + 1) * cell_size
+        return html, cell_size, grid_width, grid_height
+
+    def generate_html_word(self, num_words_to_show):
+        visible_cells = set()
+        all_word_cells = set()
+
+        for word in self.placed_words:
+            for i in range(len(word.text)):
+                if word.is_horizontal:
+                    all_word_cells.add((word.x + i, word.y))
+                else:
+                    all_word_cells.add((word.x, word.y + i))
+
         for word in self.placed_words[:num_words_to_show]:
             for i in range(len(word.text)):
                 if word.is_horizontal:
@@ -318,31 +404,26 @@ class CrosswordGenerator:
                 else:
                     visible_cells.add((word.x, word.y + i))
 
-        # Trova le righe e colonne non vuote
-        non_empty_rows = set(y for _, y in all_word_cells)
-        non_empty_cols = set(x for x, _ in all_word_cells)
+        min_x = min(x for x, _ in all_word_cells)
+        max_x = max(x for x, _ in all_word_cells)
+        min_y = min(y for _, y in all_word_cells)
+        max_y = max(y for _, y in all_word_cells)
 
-        # Crea una mappa delle coordinate originali alle nuove coordinate
-        row_map = {orig: new for new, orig in enumerate(sorted(non_empty_rows))}
-        col_map = {orig: new for new, orig in enumerate(sorted(non_empty_cols))}
+        cell_size = 30  # Dimensione della cella in pixel
 
-        # Genera l'HTML
         html = f"""
         <html>
         <head>
             <style>
+                body {{ background-color: transparent; margin: 0; padding: 0; }}
                 table {{ border-collapse: collapse; }}
                 td {{ 
-                    width: 30px; 
-                    height: 30px; 
+                    width: {cell_size}px; 
+                    height: {cell_size}px; 
                     text-align: center; 
                     vertical-align: middle; 
                     font-size: 20px;
                     font-weight: bold;
-                }}
-                td.empty, td.hidden {{ 
-                    background-color: transparent; 
-                    border: none;
                 }}
                 td.visible {{
                     background-color: white;
@@ -354,15 +435,15 @@ class CrosswordGenerator:
             <table>
         """
 
-        for orig_y in sorted(non_empty_rows):
+        for y in range(min_y, max_y + 1):
             html += "<tr>"
-            for orig_x in sorted(non_empty_cols):
-                if (orig_x, orig_y) in visible_cells:
-                    html += f'<td class="visible">{self.grid[orig_y][orig_x]}</td>'
-                elif (orig_x, orig_y) in all_word_cells:
-                    html += '<td class="hidden"></td>'
+            for x in range(min_x, max_x + 1):
+                if (x, y) in visible_cells:
+                    html += f'<td class="visible">{self.grid[y][x]}</td>'
+                elif (x, y) in all_word_cells:
+                    html += '<td></td>'
                 else:
-                    html += '<td class="empty"></td>'
+                    html += '<td></td>'
             html += "</tr>"
 
         html += """
@@ -370,162 +451,9 @@ class CrosswordGenerator:
         </body>
         </html>
         """
-        return html
-
-    def generate_html_schema(self, num_words_to_show):
-        all_word_cells = set()
-
-        # Raccoglie tutte le celle occupate da parole
-        for word in self.placed_words:
-            for i in range(len(word.text)):
-                if word.is_horizontal:
-                    all_word_cells.add((word.x + i, word.y))
-                else:
-                    all_word_cells.add((word.x, word.y + i))
-
-        # Trova le righe e colonne non vuote
-        non_empty_rows = set(y for _, y in all_word_cells)
-        non_empty_cols = set(x for x, _ in all_word_cells)
-
-        # Genera l'HTML
-        html = f"""
-        <html>
-        <head>
-            <style>
-                table {{ border-collapse: collapse; }}
-                td {{ 
-                    width: 30px; 
-                    height: 30px; 
-                    text-align: center; 
-                    vertical-align: middle; 
-                    font-size: 20px;
-                    font-weight: bold;
-                    border: 1px solid #000;
-                }}
-                td.empty {{ 
-                    background-color: transparent; 
-                    border: none;
-                }}
-                td.word {{
-                    background-color: white;
-                    color: white;
-                }}
-            </style>
-        </head>
-        <body>
-            <table>
-        """
-
-        for orig_y in sorted(non_empty_rows):
-            html += "<tr>"
-            for orig_x in sorted(non_empty_cols):
-                if (orig_x, orig_y) in all_word_cells:
-                    html += f'<td class="word">{self.grid[orig_y][orig_x]}</td>'
-                else:
-                    html += '<td class="empty"></td>'
-            html += "</tr>"
-
-        html += """
-            </table>
-        </body>
-        </html>
-        """
-        return html
-
-    def generate_transparent_image(self):
-        # Trova le dimensioni effettive del cruciverba
-        min_row = min(word.y for word in self.placed_words)
-        max_row = max(word.y + len(word.text) - 1 if not word.is_horizontal else word.y for word in self.placed_words)
-        min_col = min(word.x for word in self.placed_words)
-        max_col = max(word.x + len(word.text) - 1 if word.is_horizontal else word.x for word in self.placed_words)
-
-        # Calcola le dimensioni dell'immagine
-        width = ((max_col - min_col + 1) * 30) + 1  # 30 pixel per cella
-        height = ((max_row - min_row + 1) * 30) + 1
-
-        # Crea un'immagine trasparente
-        image = Image.new('RGBA', (width, height), (255, 255, 255, 0))
-        draw = ImageDraw.Draw(image)
-
-        # Disegna i bordi delle celle che contengono lettere
-        for word in self.placed_words:
-            for i in range(len(word.text)):
-                if word.is_horizontal:
-                    x = (word.x - min_col + i) * 30
-                    y = (word.y - min_row) * 30
-                else:
-                    x = (word.x - min_col) * 30
-                    y = (word.y - min_row + i) * 30
-
-                # Riempi la cella con il colore bianco
-                draw.rectangle([x, y, x + 30, y + 30], fill=(255, 255, 255, 255))
-
-                # Disegna i bordi della cella in nero
-                draw.rectangle([x, y, x + 30, y + 30], outline=(0, 0, 0, 255), width=1)
-
-        return image
-
-    def save_transparent_image(self, filename="crossword_structure.png"):
-        image = self.generate_transparent_image()
-        image.save(filename)
-        print(f"Immagine salvata come {filename}")
-
-    def generate_word_image(self, word):
-        # Trova le dimensioni effettive del cruciverba
-        min_row = min(w.y for w in self.placed_words)
-        max_row = max(w.y + len(w.text) - 1 if not w.is_horizontal else w.y for w in self.placed_words)
-        min_col = min(w.x for w in self.placed_words)
-        max_col = max(w.x + len(w.text) - 1 if w.is_horizontal else w.x for w in self.placed_words)
-
-        # Calcola le dimensioni dell'immagine
-        width = ((max_col - min_col + 1) * 30) + 1
-        height = ((max_row - min_row + 1) * 30) + 1
-
-        # Crea un'immagine trasparente
-        image = Image.new('RGBA', (width, height), (255, 255, 255, 0))
-        draw = ImageDraw.Draw(image)
-
-        # Carica un font per il testo
-        try:
-            font = ImageFont.truetype("arial.ttf", 20)
-        except IOError:
-            font = ImageFont.load_default()
-
-        # Determina l'altezza massima di una lettera per questo font
-        max_height = max(font.getmask(letter).size[1] for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-        # Disegna la parola
-        for i, letter in enumerate(word.text.upper()):
-            if word.is_horizontal:
-                x = (word.x - min_col + i) * 30
-                y = (word.y - min_row) * 30
-            else:
-                x = (word.x - min_col) * 30
-                y = (word.y - min_row + i) * 30
-
-            # Ottieni la maschera della lettera
-            mask = font.getmask(letter)
-
-            # Calcola le dimensioni effettive della lettera
-            text_width, text_height = mask.size
-
-            # Calcola la posizione centrata della lettera
-            text_x = x + (30 - text_width) // 2
-            text_y = y + (30 - max_height) // 2 + (max_height - text_height)
-
-            # Disegna la lettera
-            draw.text((text_x, text_y), letter, fill=(0, 0, 0, 255), font=font)
-
-        return image
-
-    def generate_all_word_images(self):
-        images = []
-        for i, word in enumerate(self.placed_words):
-            image = self.generate_word_image(word)
-            images.append(image)
-            image.save(f"crossword_word_{i+1}.png")
-        print(f"Generate {len(images)} immagini per le parole del cruciverba.")
-        return images
+        grid_width = (max_x - min_x + 1) * cell_size
+        grid_height = (max_y - min_y + 1) * cell_size
+        return html, cell_size, grid_width, grid_height
 
     def generate_crossword(self):
         if not self.place_first_word():
@@ -548,9 +476,6 @@ class CrosswordGenerator:
 
 # Uso della classe
 generator = CrosswordGenerator()
-generator.generate_crossword()
-# print(generator.generate_crossword())
+print(generator.generate_crossword())
 # print(generator.to_html())
-# generator.generate_html_stages()
-generator.save_transparent_image()
-generator.generate_all_word_images()
+generator.generate_html_stages()
