@@ -14,8 +14,9 @@ class Word:
     is_horizontal: bool
 
 class CrosswordGenerator:
-    def __init__(self, grid_size=15):
+    def __init__(self, grid_size=15, cell_size=75):
         self.grid_size = grid_size
+        self.cell_size = cell_size
         self.grid = [['_' for _ in range(grid_size)] for _ in range(grid_size)]
         self.word_list = self.get_word_list()
         self.placed_words = []
@@ -433,87 +434,74 @@ class CrosswordGenerator:
         return html
 
     def generate_transparent_image(self):
-        # Trova le dimensioni effettive del cruciverba
         min_row = min(word.y for word in self.placed_words)
         max_row = max(word.y + len(word.text) - 1 if not word.is_horizontal else word.y for word in self.placed_words)
         min_col = min(word.x for word in self.placed_words)
         max_col = max(word.x + len(word.text) - 1 if word.is_horizontal else word.x for word in self.placed_words)
 
-        # Calcola le dimensioni dell'immagine
-        width = ((max_col - min_col + 1) * 30) + 1  # 30 pixel per cella
-        height = ((max_row - min_row + 1) * 30) + 1
+        width = ((max_col - min_col + 1) * self.cell_size) + 1
+        height = ((max_row - min_row + 1) * self.cell_size) + 1
 
-        # Crea un'immagine trasparente
         image = Image.new('RGBA', (width, height), (255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
-        # Disegna i bordi delle celle che contengono lettere
         for word in self.placed_words:
             for i in range(len(word.text)):
                 if word.is_horizontal:
-                    x = (word.x - min_col + i) * 30
-                    y = (word.y - min_row) * 30
+                    x = (word.x - min_col + i) * self.cell_size
+                    y = (word.y - min_row) * self.cell_size
                 else:
-                    x = (word.x - min_col) * 30
-                    y = (word.y - min_row + i) * 30
+                    x = (word.x - min_col) * self.cell_size
+                    y = (word.y - min_row + i) * self.cell_size
 
-                # Riempi la cella con il colore bianco
-                draw.rectangle([x, y, x + 30, y + 30], fill=(255, 255, 255, 255))
-
-                # Disegna i bordi della cella in nero
-                draw.rectangle([x, y, x + 30, y + 30], outline=(0, 0, 0, 255), width=1)
+                draw.rectangle([x, y, x + self.cell_size, y + self.cell_size], fill=(255, 255, 255, 255))
+                draw.rectangle([x, y, x + self.cell_size, y + self.cell_size], outline=(0, 0, 0, 255), width=1)
 
         return image
 
     def save_transparent_image(self, filename="crossword_structure.png"):
         image = self.generate_transparent_image()
-        image.save(filename)
+        resized_image = self.resize_and_position_image(image)
+        resized_image.save(filename)
         print(f"Immagine salvata come {filename}")
 
     def generate_word_image(self, word):
-        # Trova le dimensioni effettive del cruciverba
         min_row = min(w.y for w in self.placed_words)
         max_row = max(w.y + len(w.text) - 1 if not w.is_horizontal else w.y for w in self.placed_words)
         min_col = min(w.x for w in self.placed_words)
         max_col = max(w.x + len(w.text) - 1 if w.is_horizontal else w.x for w in self.placed_words)
 
-        # Calcola le dimensioni dell'immagine
-        width = ((max_col - min_col + 1) * 30) + 1
-        height = ((max_row - min_row + 1) * 30) + 1
+        width = ((max_col - min_col + 1) * self.cell_size) + 1
+        height = ((max_row - min_row + 1) * self.cell_size) + 1
 
-        # Crea un'immagine trasparente
         image = Image.new('RGBA', (width, height), (255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
-        # Carica un font per il testo
         try:
-            font = ImageFont.truetype("arial.ttf", 20)
+            font_size = int(self.cell_size * 0.6)  # Adatta la dimensione del font alla cella
+            font = ImageFont.truetype("arial.ttf", font_size)
         except IOError:
             font = ImageFont.load_default()
 
-        # Determina l'altezza massima di una lettera per questo font
         max_height = max(font.getmask(letter).size[1] for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-        # Disegna la parola
         for i, letter in enumerate(word.text.upper()):
             if word.is_horizontal:
-                x = (word.x - min_col + i) * 30
-                y = (word.y - min_row) * 30
+                x = (word.x - min_col + i) * self.cell_size
+                y = (word.y - min_row) * self.cell_size
             else:
-                x = (word.x - min_col) * 30
-                y = (word.y - min_row + i) * 30
+                x = (word.x - min_col) * self.cell_size
+                y = (word.y - min_row + i) * self.cell_size
+            #
+            # draw.rectangle([x, y, x + self.cell_size, y + self.cell_size], fill=(255, 255, 255, 255))
+            # draw.rectangle([x, y, x + self.cell_size, y + self.cell_size], outline=(0, 0, 0, 255), width=1)
 
-            # Ottieni la maschera della lettera
             mask = font.getmask(letter)
-
-            # Calcola le dimensioni effettive della lettera
             text_width, text_height = mask.size
 
-            # Calcola la posizione centrata della lettera
-            text_x = x + (30 - text_width) // 2
-            text_y = y + (30 - max_height) // 2 + (max_height - text_height)
+            text_x = x + (self.cell_size - text_width) // 2
+            text_y = y + (self.cell_size - max_height) // 2 + (max_height - text_height)
 
-            # Disegna la lettera
             draw.text((text_x, text_y), letter, fill=(0, 0, 0, 255), font=font)
 
         return image
@@ -522,10 +510,24 @@ class CrosswordGenerator:
         images = []
         for i, word in enumerate(self.placed_words):
             image = self.generate_word_image(word)
-            images.append(image)
-            image.save(f"crossword_word_{i+1}.png")
+            resized_image = self.resize_and_position_image(image)
+            images.append(resized_image)
+            resized_image.save(f"crossword_word_{i + 1}.png")
         print(f"Generate {len(images)} immagini per le parole del cruciverba.")
         return images
+
+    def resize_and_position_image(self, image, target_width=1080, target_height=1920, bottom_margin=200):
+        # Crea una nuova immagine con sfondo trasparente
+        new_image = Image.new('RGBA', (target_width, target_height), (255, 255, 255, 0))
+
+        # Calcola la posizione per centrare l'immagine originale
+        x_offset = (target_width - image.width) // 2
+        y_offset = target_height - image.height - bottom_margin
+
+        # Incolla l'immagine originale nella nuova immagine
+        new_image.paste(image, (x_offset, y_offset), image)
+
+        return new_image
 
     def generate_crossword(self):
         if not self.place_first_word():
