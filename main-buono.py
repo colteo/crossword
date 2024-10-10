@@ -1,10 +1,11 @@
 import random
-from nltk.corpus import words
-import nltk
+# from nltk.corpus import words
+# import nltk
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
+import mysql.connector
 
-nltk.download('words', quiet=True)
+# nltk.download('words', quiet=True)
 
 @dataclass
 class Word:
@@ -12,24 +13,72 @@ class Word:
     x: int
     y: int
     is_horizontal: bool
+    clue: str = ""
+    word_pattern: str = ""
+    num_words: str = ""
 
 class CrosswordGenerator:
-    def __init__(self, grid_size=15, cell_size=75):
+    def __init__(self, grid_size=15, cell_size=75, db_config=None):
         self.grid_size = grid_size
         self.cell_size = cell_size
         self.grid = [['_' for _ in range(grid_size)] for _ in range(grid_size)]
-        self.word_list = self.get_word_list()
-        self.placed_words = []
+        self.placed_words = []  # List of placed words with additional info
+        self.db_config = db_config  # Configuration for the database connection
 
-    @staticmethod
-    def get_word_list():
-        return set(word.lower() for word in words.words() if word.isalpha())
+        if db_config:
+            self.word_list = self.get_word_list_from_db()
+        else:
+            raise ValueError("Database configuration is required.")
+
+    def get_word_list_from_db(self):
+        """
+        Recupera le parole dal database MySQL.
+        """
+        word_list = []
+
+        # Connessione al database MySQL
+        connection = mysql.connector.connect(**self.db_config)
+        cursor = connection.cursor(dictionary=True)
+
+        # Query per recuperare tutte le parole e le informazioni aggiuntive
+        query = """
+        SELECT solution, clue, word_pattern, num_words 
+        FROM crossword_entries
+        WHERE LENGTH(solution) <= %s
+        """
+        max_word_length = 15  # Limitiamo la lunghezza della parola a 15 caratteri (può essere modificato)
+        cursor.execute(query, (max_word_length,))
+
+        # Recuperiamo i risultati e li salviamo nella lista
+        for row in cursor.fetchall():
+            word_list.append({
+                'solution': row['solution'].lower(),
+                'clue': row['clue'],
+                'word_pattern': row['word_pattern'],
+                'num_words': row['num_words']
+            })
+
+        cursor.close()
+        connection.close()
+
+        return word_list
+
+    # @staticmethod
+    # def get_word_list():
+    #     return set(word.lower() for word in words.words() if word.isalpha())
 
     def find_word(self, length_range, pattern=None):
-        matching_words = [word for word in self.word_list if length_range[0] <= len(word) <= length_range[1]]
+        """
+        Cerca una parola dalla lista recuperata dal database, in base alla lunghezza e a un eventuale pattern.
+        """
+        matching_words = [word for word in self.word_list
+                          if length_range[0] <= len(word['solution']) <= length_range[1]]
+
         if pattern:
             matching_words = [word for word in matching_words if all(
-                word[i] == pattern[i] for i in range(min(len(word), len(pattern))) if pattern[i] != '_')]
+                word['solution'][i] == pattern[i]
+                for i in range(min(len(word['solution']), len(pattern))) if pattern[i] != '_')]
+
         return random.choice(matching_words) if matching_words else None
 
     def find_word_with_letter(self, length_range, letter, positions):
@@ -43,7 +92,15 @@ class CrosswordGenerator:
                         return word
         return None
 
-    def place_word(self, word, start_row, start_col, vertical=False):
+    def place_word(self, word_info, start_row, start_col, vertical=False):
+        """
+        Posiziona una parola nella griglia e salva le informazioni relative alla parola.
+        """
+        word = word_info['solution']
+        clue = word_info['clue']
+        word_pattern = word_info['word_pattern']
+        num_words = word_info['num_words']
+
         is_horizontal = not vertical
         for i, letter in enumerate(word):
             if vertical:
@@ -51,16 +108,21 @@ class CrosswordGenerator:
             else:
                 self.grid[start_row][start_col + i] = letter
 
-        self.placed_words.append(Word(word, start_col, start_row, is_horizontal))
+        # Salva le informazioni relative alla parola posizionata
+        self.placed_words.append(Word(word, start_col, start_row, is_horizontal, clue, word_pattern, num_words))
+
 
     def place_first_word(self):
-        first_word = self.find_word((8, 12))
-        if not first_word:
+        """
+        Posiziona la prima parola al centro della griglia.
+        """
+        first_word_info = self.find_word((8, 12))  # Puoi modificare le lunghezze delle parole qui
+        if not first_word_info:
             return False
 
         start_row = self.grid_size // 2
-        start_col = (self.grid_size - len(first_word)) // 2
-        self.place_word(first_word, start_row, start_col)
+        start_col = (self.grid_size - len(first_word_info['solution'])) // 2
+        self.place_word(first_word_info, start_row, start_col)
         return True
 
     def place_second_word(self):
@@ -72,14 +134,21 @@ class CrosswordGenerator:
     def place_intersecting_word(self, word_index, start, end):
         extracted_letter_index = random.randint(start, end)
         extracted_letter = self.placed_words[word_index].text[extracted_letter_index]
+
+        # Trova una nuova parola che contenga la lettera estratta
         new_word = self.find_word_with_letter((6, 8), extracted_letter, [3, 4])
 
         if not new_word:
             return False
 
         new_word_col = self.placed_words[word_index].x + extracted_letter_index
-        new_word_start_row = self.placed_words[word_index].y - new_word.index(extracted_letter)
+
+        # Qui correggi l'accesso alla parola nel dizionario new_word['solution']
+        new_word_start_row = self.placed_words[word_index].y - new_word['solution'].index(extracted_letter)
+
+        # Posiziona la nuova parola in verticale
         self.place_word(new_word, new_word_start_row, new_word_col, vertical=True)
+
         return True
 
     def place_fourth_word(self):
@@ -157,30 +226,34 @@ class CrosswordGenerator:
 
         for letter_info in free_letters:
             available_space = letter_info['left_spaces'] + letter_info['right_spaces'] + 1
-            min_length = max(5, 3)  # Lunghezza minima di 5 o 3, quale sia maggiore
+
+            # Riduciamo il min_length a 3 per avere più parole valide
+            min_length = max(3, 3)  # Lunghezza minima di 3
             max_length = min(available_space,
                              self.grid_size)  # Non superare lo spazio disponibile o la dimensione della griglia
 
             for length in range(min_length, max_length + 1):
                 matching_words = [word for word in self.word_list
-                                  if len(word) == length and letter_info['letter'] in word]
+                                  if len(word['solution']) == length and letter_info['letter'] in word['solution']]
 
                 for word in matching_words:
                     # Trova la posizione della lettera di intersezione nella parola
-                    intersection_index = word.index(letter_info['letter'])
+                    intersection_index = word['solution'].index(letter_info['letter'])
 
                     # Calcola la colonna di inizio in base alla posizione dell'intersezione
                     start_col = letter_info['col'] - intersection_index
 
                     # Verifica se la parola si adatta alla griglia senza sovrapporsi ad altre lettere
                     if (start_col >= 0 and
-                            start_col + len(word) <= self.grid_size and
+                            start_col + len(word['solution']) <= self.grid_size and
                             all(self.grid[letter_info['row']][j] == '_' or
-                                self.grid[letter_info['row']][j] == word[j - start_col]
-                                for j in range(start_col, start_col + len(word)))):
-                        # return word, letter_info['row'], start_col
+                                self.grid[letter_info['row']][j] == word['solution'][j - start_col]
+                                for j in range(start_col, start_col + len(word['solution'])))):
+                        # Posiziona la parola e termina la funzione
                         self.place_word(word, letter_info['row'], start_col)
                         return True
+
+        return False
 
     def find_free_letters_in_vertical_word(self, vertical_word):
         word = vertical_word.text
@@ -228,11 +301,18 @@ class CrosswordGenerator:
         return free_letters
 
     def print_placed_words(self):
+        """
+        Stampa le parole posizionate con le informazioni aggiuntive.
+        """
         for word in self.placed_words:
-            print(
-                f"Parola: {word.text}, Posizione: ({word.x}, {word.y}), {'Orizzontale' if word.is_horizontal else 'Verticale'}")
+            print(f"Parola: {word.text}, Posizione: ({word.x}, {word.y}), "
+                  f"{'Orizzontale' if word.is_horizontal else 'Verticale'}, "
+                  f"Clue: {word.clue}, Word Pattern: {word.word_pattern}, Num Words: {word.num_words}")
 
     def print_crossword(self):
+        """
+        Stampa la griglia del cruciverba.
+        """
         # Stampa i numeri di colonna
         col_numbers = '   ' + '  '.join(f'{i:2d}' for i in range(self.grid_size))
         print(col_numbers)
@@ -545,11 +625,22 @@ class CrosswordGenerator:
         if not self.place_fifth_word():
             return "Impossibile trovare una quinta parola adatta."
 
+        # Alla fine stampa o restituisce il risultato
+        # self.print_crossword()
+        # self.print_placed_words()
+
         return self.format_result()
 
+# Esempio di configurazione per il database MySQL
+db_config = {
+    'user': 'crossword',
+    'password': 'crossword',
+    'host': 'localhost',
+    'database': 'crossword'
+}
 
 # Uso della classe
-generator = CrosswordGenerator()
+generator = CrosswordGenerator(db_config=db_config)
 generator.generate_crossword()
 # print(generator.generate_crossword())
 # print(generator.to_html())
