@@ -416,7 +416,8 @@ class CrosswordGenerator:
                 placement_functions = [
                     self.place_second_word,
                     self.place_third_word,
-                    self.place_fourth_word
+                    self.place_fourth_word,
+                    self.place_fifth_word
                 ]
 
                 words_placed = 1
@@ -643,6 +644,86 @@ class CrosswordGenerator:
 
         logging.info(f"Crossword saved to {output_file}")
 
+    def place_fifth_word(self):
+        """
+        Posiziona la quinta parola orizzontalmente, intersecando la prima e la quarta parola.
+        La parola deve mantenere almeno una riga di distanza dalla seconda parola orizzontale.
+
+        Returns:
+            bool: True se il posizionamento ha successo, False altrimenti
+        """
+        # Otteniamo le parole rilevanti
+        first_word = self.placed_words[0]  # verticale
+        second_word = self.placed_words[1]  # orizzontale
+        fourth_word = self.placed_words[3]  # verticale
+
+        # Verifichiamo che abbiamo tutte le parole necessarie
+        if len(self.placed_words) < 4:
+            logging.warning("Non ci sono abbastanza parole posizionate per aggiungere la quinta")
+            return False
+
+        # Troviamo le possibili righe per la quinta parola
+        # Deve essere almeno una riga sopra o sotto la seconda parola
+        possible_rows = []
+        second_word_row = second_word.y
+
+        # Controlliamo le righe sopra la seconda parola
+        for row in range(0, second_word_row - 1):
+            possible_rows.append(row)
+
+        # Controlliamo le righe sotto la seconda parola
+        for row in range(second_word_row + 2, self.grid_size):
+            possible_rows.append(row)
+
+        # Per ogni riga possibile, troviamo le lettere di intersezione con la prima e la quarta parola
+        for row in possible_rows:
+            # Troviamo le lettere e le posizioni di intersezione
+            first_intersection_letter = None
+            first_intersection_col = first_word.x
+            first_intersection_row_pos = row - first_word.y
+
+            fourth_intersection_letter = None
+            fourth_intersection_col = fourth_word.x
+            fourth_intersection_row_pos = row - fourth_word.y
+
+            # Verifichiamo che le intersezioni cadano all'interno delle parole verticali
+            if (0 <= first_intersection_row_pos < len(first_word.text)):
+                first_intersection_letter = first_word.text[first_intersection_row_pos]
+
+            if (0 <= fourth_intersection_row_pos < len(fourth_word.text)):
+                fourth_intersection_letter = fourth_word.text[fourth_intersection_row_pos]
+
+            # Se abbiamo trovato entrambe le lettere di intersezione
+            if first_intersection_letter and fourth_intersection_letter:
+                # Calcoliamo la distanza tra le intersezioni
+                distance = abs(fourth_intersection_col - first_intersection_col)
+
+                # Cerchiamo una parola che abbia:
+                # - lunghezza appropriata per coprire la distanza
+                # - le lettere corrette nelle posizioni di intersezione
+                pattern = ['_'] * (distance + 1)
+                relative_first_pos = 0
+                relative_fourth_pos = distance
+
+                pattern[relative_first_pos] = first_intersection_letter
+                pattern[relative_fourth_pos] = fourth_intersection_letter
+
+                word = self.find_word((distance + 1, distance + 1), ''.join(pattern))
+
+                if word:
+                    # Calcoliamo la posizione iniziale della parola
+                    start_col = min(first_intersection_col, fourth_intersection_col)
+
+                    # Verifichiamo che il posizionamento sia valido
+                    if self.can_place_word(word['solution'], row, start_col, vertical=False):
+                        # Posizioniamo la parola
+                        if self.place_word(word, row, start_col, vertical=False):
+                            logging.info(f"Quinta parola posizionata con successo: {word['solution']}")
+                            return True
+
+        logging.warning("Impossibile trovare una posizione valida per la quinta parola")
+        return False
+
 def main():
     """
     Funzione principale per l'esecuzione del generatore di cruciverba.
@@ -661,7 +742,7 @@ def main():
             grid_size=15,
             cell_size=75,
             db_config=db_config,
-            min_words=4,
+            min_words=5,
             max_attempts=3
         )
 
