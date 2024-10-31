@@ -347,78 +347,6 @@ class CrosswordGenerator:
 
         return free_letters
 
-    def place_additional_word(self):
-        """
-        Tenta di piazzare una parola aggiuntiva.
-        """
-        for word in self.placed_words:
-            if word.is_horizontal:
-                positions = self.find_vertical_intersection_points(word)
-            else:
-                positions = self.find_horizontal_intersection_points(word)
-
-            for pos in positions:
-                if self.try_place_intersecting_word(pos):
-                    return True
-        return False
-
-    def find_vertical_intersection_points(self, word):
-        """
-        Trova punti di intersezione validi per nuove parole verticali.
-        """
-        points = []
-        for i, letter in enumerate(word.text):
-            x, y = word.x + i, word.y
-            if self.is_valid_intersection_point(x, y, vertical=True):
-                points.append({'x': x, 'y': y, 'letter': letter})
-        return points
-
-    def find_horizontal_intersection_points(self, word):
-        """
-        Trova punti di intersezione validi per nuove parole orizzontali.
-        """
-        points = []
-        for i, letter in enumerate(word.text):
-            x, y = word.x, word.y + i
-            if self.is_valid_intersection_point(x, y, vertical=False):
-                points.append({'x': x, 'y': y, 'letter': letter})
-        return points
-
-    def is_valid_intersection_point(self, x, y, vertical=True):
-        """
-        Verifica se un punto è valido per l'intersezione.
-        """
-        if vertical:
-            return (y > 0 and y < self.grid_size - 1 and
-                    self.grid[y - 1][x] == '_' and
-                    self.grid[y + 1][x] == '_')
-        else:
-            return (x > 0 and x < self.grid_size - 1 and
-                    self.grid[y][x - 1] == '_' and
-                    self.grid[y][x + 1] == '_')
-
-    def try_place_intersecting_word(self, pos):
-        """
-        Tenta di piazzare una parola che interseca in un punto specifico.
-        """
-        min_length = 4
-        max_length = self.grid_size - max(pos['x'], pos['y'])
-
-        word_info = self.find_word_with_letter(
-            (min_length, max_length),
-            pos['letter'],
-            [1, 2, 3]
-        )
-
-        if word_info:
-            letter_idx = word_info['solution'].index(pos['letter'])
-            start_row = pos['y'] - letter_idx if pos.get('vertical', True) else pos['y']
-            start_col = pos['x'] - letter_idx if not pos.get('vertical', True) else pos['x']
-
-            if self.place_word(word_info, start_row, start_col, pos.get('vertical', True)):
-                return True
-        return False
-
     def reset_grid(self):
         """
         Resetta la griglia e le parole piazzate.
@@ -554,50 +482,6 @@ class CrosswordGenerator:
         except Exception as e:
             logging.error(f"Error saving JSON file: {str(e)}")
             raise
-
-    def load_from_json(self, json_file):
-        """
-        Carica un cruciverba da un file JSON.
-
-        Args:
-            json_file (str): Percorso del file JSON da caricare
-
-        Returns:
-            bool: True se il caricamento è avvenuto con successo, False altrimenti
-        """
-        try:
-            with open(json_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Carica i metadata
-            self.guid = uuid.UUID(data['metadata']['guid'])
-            self.timestamp = data['metadata']['timestamp']
-            self.grid_size = data['metadata']['grid_size']
-            self.cell_size = data['metadata']['cell_size']
-
-            # Carica la griglia
-            self.grid = data['grid']
-
-            # Ricostruisci le parole
-            self.placed_words = [
-                Word(
-                    text=word_data['text'],
-                    x=word_data['x'],
-                    y=word_data['y'],
-                    is_horizontal=word_data['is_horizontal'],
-                    clue=word_data['clue'],
-                    word_pattern=word_data['word_pattern'],
-                    num_words=word_data['num_words']
-                )
-                for word_data in data['words']
-            ]
-
-            logging.info(f"Crossword loaded from JSON: {json_file}")
-            return True
-
-        except Exception as e:
-            logging.error(f"Error loading JSON file: {str(e)}")
-            return False
 
     def format_result(self):
         """

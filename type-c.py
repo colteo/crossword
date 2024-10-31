@@ -4,7 +4,6 @@ from datetime import datetime
 import random
 from dataclasses import dataclass, asdict
 import json
-from PIL import Image, ImageDraw, ImageFont
 import mysql.connector
 import logging
 
@@ -103,20 +102,6 @@ class CrosswordGenerator:
             ]
 
         return random.choice(matching_words) if matching_words else None
-
-    def find_word_with_letter(self, length_range, letter, positions):
-        """
-        Trova una parola che contiene una lettera specifica in una delle posizioni date.
-        """
-        for pos in positions:
-            for length in range(length_range[0], length_range[1] + 1):
-                if pos < length:
-                    pattern = ['_'] * length
-                    pattern[pos] = letter
-                    word = self.find_word((length, length), ''.join(pattern))
-                    if word:
-                        return word
-        return None
 
     def can_place_word(self, word, start_row, start_col, vertical=False):
         """
@@ -540,50 +525,6 @@ class CrosswordGenerator:
         except Exception as e:
             logging.error(f"Error saving JSON file: {str(e)}")
             raise
-
-    def load_from_json(self, json_file):
-        """
-        Carica un cruciverba da un file JSON.
-
-        Args:
-            json_file (str): Percorso del file JSON da caricare
-
-        Returns:
-            bool: True se il caricamento è avvenuto con successo, False altrimenti
-        """
-        try:
-            with open(json_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Carica i metadata
-            self.guid = uuid.UUID(data['metadata']['guid'])
-            self.timestamp = data['metadata']['timestamp']
-            self.grid_size = data['metadata']['grid_size']
-            self.cell_size = data['metadata']['cell_size']
-
-            # Carica la griglia
-            self.grid = data['grid']
-
-            # Ricostruisci le parole
-            self.placed_words = [
-                Word(
-                    text=word_data['text'],
-                    x=word_data['x'],
-                    y=word_data['y'],
-                    is_horizontal=word_data['is_horizontal'],
-                    clue=word_data['clue'],
-                    word_pattern=word_data['word_pattern'],
-                    num_words=word_data['num_words']
-                )
-                for word_data in data['words']
-            ]
-
-            logging.info(f"Crossword loaded from JSON: {json_file}")
-            return True
-
-        except Exception as e:
-            logging.error(f"Error loading JSON file: {str(e)}")
-            return False
 
     def format_result(self):
         """

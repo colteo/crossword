@@ -526,50 +526,6 @@ class CrosswordGenerator:
             logging.error(f"Error saving JSON file: {str(e)}")
             raise
 
-    def load_from_json(self, json_file):
-        """
-        Carica un cruciverba da un file JSON.
-
-        Args:
-            json_file (str): Percorso del file JSON da caricare
-
-        Returns:
-            bool: True se il caricamento è avvenuto con successo, False altrimenti
-        """
-        try:
-            with open(json_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Carica i metadata
-            self.guid = uuid.UUID(data['metadata']['guid'])
-            self.timestamp = data['metadata']['timestamp']
-            self.grid_size = data['metadata']['grid_size']
-            self.cell_size = data['metadata']['cell_size']
-
-            # Carica la griglia
-            self.grid = data['grid']
-
-            # Ricostruisci le parole
-            self.placed_words = [
-                Word(
-                    text=word_data['text'],
-                    x=word_data['x'],
-                    y=word_data['y'],
-                    is_horizontal=word_data['is_horizontal'],
-                    clue=word_data['clue'],
-                    word_pattern=word_data['word_pattern'],
-                    num_words=word_data['num_words']
-                )
-                for word_data in data['words']
-            ]
-
-            logging.info(f"Crossword loaded from JSON: {json_file}")
-            return True
-
-        except Exception as e:
-            logging.error(f"Error loading JSON file: {str(e)}")
-            return False
-
     def format_result(self):
         """
         Formatta il risultato del cruciverba.
