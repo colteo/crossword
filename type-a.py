@@ -28,7 +28,7 @@ class Word:
 
 
 class CrosswordGenerator:
-    def __init__(self, grid_size=15, cell_size=75, db_config=None, min_words=5, max_attempts=3):
+    def __init__(self, grid_size=15, cell_size=75, db_config=None, max_attempts=3):
         """
         Inizializza il generatore di cruciverba
 
@@ -36,7 +36,6 @@ class CrosswordGenerator:
             grid_size (int): Dimensione della griglia
             cell_size (int): Dimensione di ogni cella in pixel
             db_config (dict): Configurazione del database
-            min_words (int): Numero minimo di parole da piazzare
             max_attempts (int): Numero massimo di tentativi di generazione
         """
         self.grid_size = grid_size
@@ -44,18 +43,14 @@ class CrosswordGenerator:
         self.grid = [['_' for _ in range(grid_size)] for _ in range(grid_size)]
         self.placed_words = []
         self.db_config = db_config
-        self.min_words = min_words
         self.max_attempts = max_attempts
 
-        # Genera un GUID per questa sessione di generazione
         self.guid = uuid.uuid4()
         self.timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-        # Crea la directory di output
         self.output_dir = os.path.join("output", f"{self.timestamp}-{self.guid}")
         os.makedirs(self.output_dir, exist_ok=True)
 
-        # Configura il logging
         logging.basicConfig(
             filename=os.path.join(self.output_dir, 'crossword.log'),
             level=logging.INFO,
@@ -68,9 +63,6 @@ class CrosswordGenerator:
             raise ValueError("Database configuration is required.")
 
     def get_word_list_from_db(self):
-        """
-        Recupera le parole dal database MySQL.
-        """
         try:
             connection = mysql.connector.connect(**self.db_config)
             cursor = connection.cursor(dictionary=True)
@@ -437,7 +429,7 @@ class CrosswordGenerator:
 
     def generate_crossword(self):
         """
-        Genera il cruciverba completo con backtracking.
+        Genera il cruciverba completo con esattamente 5 parole.
         """
         attempts = 0
         while attempts < self.max_attempts:
@@ -445,32 +437,24 @@ class CrosswordGenerator:
                 logging.info(f"Starting attempt {attempts + 1}")
                 self.reset_grid()
 
-                if not self.place_first_word():
-                    logging.warning("Failed to place first word")
-                    continue
-
-                placement_functions = [
-                    self.place_second_word,
-                    self.place_third_word,
-                    self.place_fourth_word,
-                    self.place_fifth_word,
-                    self.place_additional_word
+                # Sequenza fissa di 5 posizionamenti
+                placement_sequence = [
+                    self.place_first_word,    # Prima parola al centro
+                    self.place_second_word,   # Seconda parola che interseca la prima
+                    self.place_third_word,    # Terza parola che interseca la prima
+                    self.place_fourth_word,   # Quarta parola che collega seconda e terza
+                    self.place_fifth_word     # Quinta parola nella terza parola
                 ]
 
-                words_placed = 1
-                for i, place_func in enumerate(placement_functions, 1):
-                    if words_placed >= self.min_words:
+                success = True
+                for i, place_func in enumerate(placement_sequence, 1):
+                    if not place_func():
+                        logging.warning(f"Failed to place word {i}")
+                        success = False
                         break
 
-                    if place_func():
-                        words_placed += 1
-                        logging.info(f"Successfully placed word {words_placed}")
-                    else:
-                        logging.warning(f"Failed to place word {i + 1}")
-                        break
-
-                if words_placed >= self.min_words:
-                    logging.info("Successfully generated crossword")
+                if success:
+                    logging.info("Successfully generated crossword with 5 words")
                     return self.format_result()
 
             except Exception as e:
@@ -685,7 +669,6 @@ def main():
     """
     Funzione principale per l'esecuzione del generatore di cruciverba.
     """
-    # Configurazione del database
     db_config = {
         'user': 'crossword',
         'password': 'crossword',
@@ -694,16 +677,13 @@ def main():
     }
 
     try:
-        # Creazione del generatore
         generator = CrosswordGenerator(
             grid_size=15,
             cell_size=75,
             db_config=db_config,
-            min_words=5,
             max_attempts=3
         )
 
-        # Genera il cruciverba
         result = generator.generate_crossword()
         print(result)
 
