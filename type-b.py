@@ -27,7 +27,7 @@ class Word:
 
 
 class CrosswordGenerator:
-    def __init__(self, grid_size=15, cell_size=75, db_config=None, min_words=5, max_attempts=3):
+    def __init__(self, grid_size=15, cell_size=75, db_config=None, max_attempts=3):
         """
         Inizializza il generatore di cruciverba
 
@@ -35,7 +35,6 @@ class CrosswordGenerator:
             grid_size (int): Dimensione della griglia
             cell_size (int): Dimensione di ogni cella in pixel
             db_config (dict): Configurazione del database
-            min_words (int): Numero minimo di parole da piazzare
             max_attempts (int): Numero massimo di tentativi di generazione
         """
         self.grid_size = grid_size
@@ -43,7 +42,6 @@ class CrosswordGenerator:
         self.grid = [['_' for _ in range(grid_size)] for _ in range(grid_size)]
         self.placed_words = []
         self.db_config = db_config
-        self.min_words = min_words
         self.max_attempts = max_attempts
 
         # Genera un GUID per questa sessione di generazione
@@ -401,7 +399,7 @@ class CrosswordGenerator:
 
     def generate_crossword(self):
         """
-        Genera il cruciverba completo con backtracking.
+        Genera il cruciverba completo.
         """
         attempts = 0
         while attempts < self.max_attempts:
@@ -409,30 +407,24 @@ class CrosswordGenerator:
                 logging.info(f"Starting attempt {attempts + 1}")
                 self.reset_grid()
 
-                if not self.place_first_word():
-                    logging.warning("Failed to place first word")
-                    continue
-
-                placement_functions = [
+                # Sequenza fissa di posizionamento delle parole
+                placement_sequence = [
+                    self.place_first_word,
                     self.place_second_word,
                     self.place_third_word,
                     self.place_fourth_word,
                     self.place_fifth_word
                 ]
 
-                words_placed = 1
-                for i, place_func in enumerate(placement_functions, 1):
-                    if words_placed >= self.min_words:
+                success = True
+                for i, place_func in enumerate(placement_sequence, 1):
+                    if not place_func():
+                        logging.warning(f"Failed to place word {i}")
+                        success = False
                         break
+                    logging.info(f"Successfully placed word {i}")
 
-                    if place_func():
-                        words_placed += 1
-                        logging.info(f"Successfully placed word {words_placed}")
-                    else:
-                        logging.warning(f"Failed to place word {i + 1}")
-                        break
-
-                if words_placed >= self.min_words:
+                if success:
                     logging.info("Successfully generated crossword")
                     return self.format_result()
 
@@ -801,7 +793,6 @@ def main():
             grid_size=15,
             cell_size=75,
             db_config=db_config,
-            min_words=5,
             max_attempts=3
         )
 
