@@ -647,7 +647,13 @@ class CrosswordGenerator:
     def place_fifth_word(self):
         """
         Posiziona la quinta parola orizzontalmente, intersecando la prima e la quarta parola.
-        La parola deve mantenere almeno una riga di distanza dalla seconda parola orizzontale.
+
+        Criteri di ricerca:
+        1. Lunghezza: 8-12 caratteri
+        2. Deve essere almeno una riga sopra o sotto la seconda parola
+        3. La prima intersezione deve essere nelle prime 4 posizioni della parola
+        4. La seconda intersezione deve essere nelle ultime 4 posizioni della parola
+        5. Le intersezioni devono essere distanti almeno 4 caratteri tra loro
 
         Returns:
             bool: True se il posizionamento ha successo, False altrimenti
@@ -663,66 +669,119 @@ class CrosswordGenerator:
             return False
 
         # Troviamo le possibili righe per la quinta parola
-        # Deve essere almeno una riga sopra o sotto la seconda parola
         possible_rows = []
         second_word_row = second_word.y
 
-        # Controlliamo le righe sopra la seconda parola
+        # Controlliamo le righe sopra la seconda parola (minimo 1 riga di distanza)
         for row in range(0, second_word_row - 1):
             possible_rows.append(row)
 
-        # Controlliamo le righe sotto la seconda parola
+        # Controlliamo le righe sotto la seconda parola (minimo 1 riga di distanza)
         for row in range(second_word_row + 2, self.grid_size):
             possible_rows.append(row)
 
-        # Per ogni riga possibile, troviamo le lettere di intersezione con la prima e la quarta parola
+        # Per ogni riga possibile, analizziamo le potenziali intersezioni
         for row in possible_rows:
             # Troviamo le lettere e le posizioni di intersezione
-            first_intersection_letter = None
             first_intersection_col = first_word.x
             first_intersection_row_pos = row - first_word.y
 
-            fourth_intersection_letter = None
             fourth_intersection_col = fourth_word.x
             fourth_intersection_row_pos = row - fourth_word.y
 
             # Verifichiamo che le intersezioni cadano all'interno delle parole verticali
-            if (0 <= first_intersection_row_pos < len(first_word.text)):
-                first_intersection_letter = first_word.text[first_intersection_row_pos]
+            if not (0 <= first_intersection_row_pos < len(first_word.text) and
+                    0 <= fourth_intersection_row_pos < len(fourth_word.text)):
+                continue
 
-            if (0 <= fourth_intersection_row_pos < len(fourth_word.text)):
-                fourth_intersection_letter = fourth_word.text[fourth_intersection_row_pos]
+            first_intersection_letter = first_word.text[first_intersection_row_pos]
+            fourth_intersection_letter = fourth_word.text[fourth_intersection_row_pos]
 
-            # Se abbiamo trovato entrambe le lettere di intersezione
-            if first_intersection_letter and fourth_intersection_letter:
-                # Calcoliamo la distanza tra le intersezioni
-                distance = abs(fourth_intersection_col - first_intersection_col)
+            # Calcoliamo la distanza tra le intersezioni
+            distance = abs(fourth_intersection_col - first_intersection_col)
 
-                # Cerchiamo una parola che abbia:
-                # - lunghezza appropriata per coprire la distanza
-                # - le lettere corrette nelle posizioni di intersezione
-                pattern = ['_'] * (distance + 1)
-                relative_first_pos = 0
-                relative_fourth_pos = distance
+            # Verifichiamo che la distanza sia sufficiente (minimo 4 caratteri)
+            if distance < 4:
+                logging.debug(f"Distanza tra intersezioni troppo piccola: {distance}")
+                continue
 
-                pattern[relative_first_pos] = first_intersection_letter
-                pattern[relative_fourth_pos] = fourth_intersection_letter
+            # Per ogni possibile lunghezza della parola (8-12 caratteri)
+            for word_length in range(8, 13):
+                # La parola deve essere abbastanza lunga da coprire entrambe le intersezioni
+                if word_length <= distance:
+                    continue
 
-                word = self.find_word((distance + 1, distance + 1), ''.join(pattern))
+                # Calcoliamo le possibili posizioni di inizio della parola
+                max_start_shift = min(3, first_intersection_col)  # massimo 3 caratteri prima della prima intersezione
 
-                if word:
-                    # Calcoliamo la posizione iniziale della parola
-                    start_col = min(first_intersection_col, fourth_intersection_col)
+                for start_shift in range(max_start_shift + 1):
+                    start_col = first_intersection_col - start_shift
 
-                    # Verifichiamo che il posizionamento sia valido
-                    if self.can_place_word(word['solution'], row, start_col, vertical=False):
-                        # Posizioniamo la parola
-                        if self.place_word(word, row, start_col, vertical=False):
-                            logging.info(f"Quinta parola posizionata con successo: {word['solution']}")
-                            return True
+                    # Verifichiamo che la parola rimanga nei limiti della griglia
+                    if start_col + word_length > self.grid_size:
+                        continue
+
+                    # Creiamo il pattern per la ricerca della parola
+                    pattern = ['_'] * word_length
+                    first_pos = start_shift
+                    fourth_pos = fourth_intersection_col - start_col
+
+                    # Verifichiamo che le posizioni delle intersezioni rispettino i criteri
+                    if not (0 <= first_pos < 4 and word_length - 4 <= fourth_pos < word_length):
+                        continue
+
+                    pattern[first_pos] = first_intersection_letter
+                    pattern[fourth_pos] = fourth_intersection_letter
+
+                    # Cerchiamo una parola che soddisfi il pattern
+                    word = self.find_word_with_specific_pattern(
+                        min_length=word_length,
+                        max_length=word_length,
+                        pattern=''.join(pattern)
+                    )
+
+                    if word:
+                        # Verifichiamo che il posizionamento sia valido
+                        if self.can_place_word(word['solution'], row, start_col, vertical=False):
+                            # Posizioniamo la parola
+                            if self.place_word(word, row, start_col, vertical=False):
+                                logging.info(
+                                    f"Quinta parola posizionata con successo: {word['solution']} "
+                                    f"alla riga {row}, colonna {start_col}"
+                                )
+                                return True
 
         logging.warning("Impossibile trovare una posizione valida per la quinta parola")
         return False
+
+    def find_word_with_specific_pattern(self, min_length, max_length, pattern):
+        """
+        Cerca una parola che soddisfi un pattern specifico e i criteri di lunghezza.
+
+        Args:
+            min_length (int): Lunghezza minima della parola
+            max_length (int): Lunghezza massima della parola
+            pattern (str): Pattern da rispettare ('_' per qualsiasi carattere)
+
+        Returns:
+            dict: Informazioni sulla parola trovata o None se non trovata
+        """
+        matching_words = []
+
+        for word in self.word_list:
+            # Verifica la lunghezza
+            if not (min_length <= len(word['solution']) <= max_length):
+                continue
+
+            # Verifica il pattern
+            if len(word['solution']) != len(pattern):
+                continue
+
+            # Verifica che tutte le lettere specificate nel pattern corrispondano
+            if all(p == '_' or p == w for p, w in zip(pattern, word['solution'])):
+                matching_words.append(word)
+
+        return random.choice(matching_words) if matching_words else None
 
 def main():
     """
