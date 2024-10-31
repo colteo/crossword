@@ -574,7 +574,7 @@ class CrosswordGenerator:
         """
         Formatta il risultato del cruciverba.
         """
-        # self.optimize_grid()
+        self.optimize_grid()
         self.print_crossword()
         self.print_placed_words()
         self.save_to_file()
