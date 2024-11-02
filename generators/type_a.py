@@ -1,13 +1,11 @@
-# generators/type_a.py
-
 from typing import List, Dict, Tuple, Optional
 import random
 import logging
-from base.base_generator import BaseCrosswordGenerator
+from base.puzzle_generator import PuzzleCrosswordGenerator
 from base.word import Word
 
 
-class TypeACrossword(BaseCrosswordGenerator):
+class TypeACrossword(PuzzleCrosswordGenerator):
     """
     Implementazione del generatore di cruciverba con strategia orizzontale centrica.
     La prima parola viene posizionata orizzontalmente al centro della griglia.

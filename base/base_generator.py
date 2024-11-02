@@ -6,7 +6,6 @@ import random
 import json
 import mysql.connector
 import logging
-from typing import List, Dict, Tuple, Optional
 from utils.grid_utils import GridUtils
 from utils.db_utils import DatabaseUtils
 from base.word import Word
@@ -272,110 +271,10 @@ class BaseCrosswordGenerator(ABC):
 
         logging.info(f"Crossword saved to {output_file}")
 
-    def generate_crossword(self):
-        """
-        Genera il cruciverba completo con esattamente 5 parole.
-        """
-        attempts = 0
-        while attempts < self.max_attempts:
-            try:
-                logging.info(f"Starting attempt {attempts + 1}")
-                self.reset_grid()
-
-                # Sequenza fissa di 5 posizionamenti
-                placement_sequence = [
-                    self.place_first_word,
-                    self.place_second_word,
-                    self.place_third_word,
-                    self.place_fourth_word,
-                    self.place_fifth_word
-                ]
-
-                success = True
-                for i, place_func in enumerate(placement_sequence, 1):
-                    if not place_func():
-                        logging.warning(f"Failed to place word {i}")
-                        success = False
-                        break
-
-                if success:
-                    logging.info("Successfully generated crossword with 5 words")
-                    return self.format_result()
-
-            except Exception as e:
-                logging.error(f"Error during attempt {attempts + 1}: {str(e)}")
-
-            attempts += 1
-
-        logging.error("Failed to generate crossword after all attempts")
-        return "Unable to generate crossword after multiple attempts"
-
     @abstractmethod
-    def place_first_word(self) -> bool:
+    def generate_crossword(self) -> str:
         """
-        Posiziona la prima parola nella griglia.
-        La posizione e l'orientamento dipendono dalla strategia specifica.
-
-        Returns:
-            bool: True se il posizionamento ha successo, False altrimenti
+        Genera il cruciverba. Da implementare nelle sottoclassi.
         """
         pass
 
-    @abstractmethod
-    def place_second_word(self) -> bool:
-        """
-        Posiziona la seconda parola intersecando la prima.
-        Il punto di intersezione e l'orientamento dipendono dalla strategia.
-
-        Returns:
-            bool: True se il posizionamento ha successo, False altrimenti
-        """
-        pass
-
-    @abstractmethod
-    def place_third_word(self) -> bool:
-        """
-        Posiziona la terza parola nella griglia.
-        Deve intersecare una o più parole esistenti secondo la strategia.
-
-        Returns:
-            bool: True se il posizionamento ha successo, False altrimenti
-        """
-        pass
-
-    @abstractmethod
-    def place_fourth_word(self) -> bool:
-        """
-        Posiziona la quarta parola nella griglia.
-        Deve intersecare una o più parole esistenti secondo la strategia.
-
-        Returns:
-            bool: True se il posizionamento ha successo, False altrimenti
-        """
-        pass
-
-    @abstractmethod
-    def place_fifth_word(self) -> bool:
-        """
-        Posiziona la quinta e ultima parola nella griglia.
-        Deve intersecare una o più parole esistenti secondo la strategia.
-
-        Returns:
-            bool: True se il posizionamento ha successo, False altrimenti
-        """
-        pass
-
-    @abstractmethod
-    def find_word_with_letter(self, length_range: Tuple[int, int], letter: str, positions: List[int]) -> Optional[Dict]:
-        """
-        Trova una parola che contiene una lettera specifica in una delle posizioni date.
-
-        Args:
-            length_range: Tupla (min_length, max_length) per la lunghezza della parola
-            letter: La lettera che deve essere presente
-            positions: Lista di posizioni possibili per la lettera
-
-        Returns:
-            Optional[Dict]: Informazioni sulla parola trovata o None se non trovata
-        """
-        pass

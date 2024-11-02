@@ -3,6 +3,7 @@
 from generators.type_a import TypeACrossword
 from generators.type_b import TypeBCrossword
 from generators.type_c import TypeCCrossword
+from generators.hidden_word_a import HiddenWordAGenerator
 
 def main():
     # Configurazione del database
@@ -14,7 +15,8 @@ def main():
     }
 
     try:
-        generator = TypeACrossword(
+        # generator = TypeACrossword(
+        generator = HiddenWordAGenerator(
             grid_size=15,
             cell_size=75,
             db_config=db_config,
