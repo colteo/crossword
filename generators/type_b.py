@@ -1,12 +1,10 @@
-# generators/type_b.py
-
 from typing import List, Dict, Tuple, Optional
 import random
 import logging
-from base.base_generator import BaseCrosswordGenerator
+from base.puzzle_generator import PuzzleCrosswordGenerator
 
 
-class TypeBCrossword(BaseCrosswordGenerator):
+class TypeBCrossword(PuzzleCrosswordGenerator):
     """
     Implementazione del generatore di cruciverba con strategia verticale centrica.
     La prima parola viene posizionata verticalmente al centro della griglia.

@@ -1,12 +1,10 @@
-# generators/type_c.py
-
 from typing import List, Dict, Tuple, Optional
 import random
 import logging
-from base.base_generator import BaseCrosswordGenerator
+from base.puzzle_generator import PuzzleCrosswordGenerator
 
 
-class TypeCCrossword(BaseCrosswordGenerator):
+class TypeCCrossword(PuzzleCrosswordGenerator):
     """
     Implementazione del generatore di cruciverba con strategia mista.
     Utilizza una combinazione di posizionamenti orizzontali e verticali
