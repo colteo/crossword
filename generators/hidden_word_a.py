@@ -9,8 +9,6 @@ class HiddenWordAGenerator(HiddenWordGenerator):
 
     def __init__(self, grid_size=15, cell_size=75, db_config=None, max_attempts=3):
         super().__init__(grid_size, cell_size, db_config, max_attempts)
-        self.min_words = 5
-        self.max_words = 12
 
     def set_hidden_word(self, word_length: int) -> bool:
         """
