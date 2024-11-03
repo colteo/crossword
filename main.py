@@ -3,7 +3,7 @@
 import argparse
 import sys
 import logging
-from typing import Dict
+from typing import Dict, Any
 from generators.type_a import TypeACrossword
 from generators.type_b import TypeBCrossword
 from generators.type_c import TypeCCrossword
@@ -29,7 +29,11 @@ def get_db_config() -> Dict[str, str]:
     }
 
 
-def create_generator(generator_type: str, grid_size: int, cell_size: int, db_config: Dict[str, str]):
+def create_generator(generator_type: str,
+                     grid_size: int,
+                     cell_size: int,
+                     db_config: Dict[str, str],
+                     **kwargs: Any):
     """
     Factory function to create the appropriate generator based on type.
 
@@ -38,6 +42,7 @@ def create_generator(generator_type: str, grid_size: int, cell_size: int, db_con
         grid_size: Size of the crossword grid
         cell_size: Size of each cell in pixels
         db_config: Database configuration dictionary
+        **kwargs: Additional generator-specific parameters
 
     Returns:
         An instance of the appropriate crossword generator
@@ -53,11 +58,24 @@ def create_generator(generator_type: str, grid_size: int, cell_size: int, db_con
     if not generator_class:
         raise ValueError(f"Invalid generator type: {generator_type}")
 
-    return generator_class(
+    generator = generator_class(
         grid_size=grid_size,
         cell_size=cell_size,
         db_config=db_config
     )
+
+    # Configure specific parameters for hidden word generator
+    if generator_type == 'hidden':
+        if 'hidden_word_length' in kwargs:
+            generator.min_word_length = kwargs['hidden_word_length']
+            generator.max_word_length = kwargs['hidden_word_length']
+
+        if 'min_words' in kwargs:
+            generator.min_words = kwargs['min_words']
+        if 'max_words' in kwargs:
+            generator.max_words = kwargs['max_words']
+
+    return generator
 
 
 def parse_args():
@@ -68,7 +86,8 @@ def parse_args():
         epilog="""
 Examples:
   %(prog)s -t type_a -s 15 --cell-size 75
-  %(prog)s -t hidden -s 20 -v
+  %(prog)s -t hidden -s 20 --hidden-length 8 -v
+  %(prog)s -t hidden --hidden-length 6 --min-words 6 --max-words 10
   %(prog)s -t type_b --max-attempts 5
         """
     )
@@ -101,6 +120,25 @@ Examples:
         help='Maximum number of generation attempts (default: 3)'
     )
 
+    # Hidden word specific arguments
+    parser.add_argument(
+        '--hidden-length',
+        type=int,
+        help='Length of the hidden word (required for hidden type)'
+    )
+
+    parser.add_argument(
+        '--min-words',
+        type=int,
+        help='Minimum number of intersecting words (for hidden type)'
+    )
+
+    parser.add_argument(
+        '--max-words',
+        type=int,
+        help='Maximum number of intersecting words (for hidden type)'
+    )
+
     parser.add_argument(
         '-v', '--verbose',
         action='store_true',
@@ -121,6 +159,20 @@ Examples:
     if args.max_attempts < 1 or args.max_attempts > 10:
         parser.error("Maximum attempts must be between 1 and 10")
 
+    # Validate hidden word parameters
+    if args.type == 'hidden':
+        if args.hidden_length is None:
+            parser.error("--hidden-length is required for hidden type crossword")
+        if args.hidden_length < 5 or args.hidden_length > 15:
+            parser.error("Hidden word length must be between 5 and 15")
+        if args.min_words is not None and args.min_words < 3:
+            parser.error("Minimum number of words must be at least 3")
+        if args.max_words is not None and args.max_words > 20:
+            parser.error("Maximum number of words cannot exceed 20")
+        if args.min_words is not None and args.max_words is not None:
+            if args.min_words > args.max_words:
+                parser.error("Minimum words cannot be greater than maximum words")
+
     return args
 
 
@@ -135,12 +187,30 @@ def main():
 
         db_config = get_db_config()
 
+        # Create generator with additional parameters for hidden type
+        generator_kwargs = {}
+        if args.type == 'hidden':
+            generator_kwargs.update({
+                'hidden_word_length': args.hidden_length
+            })
+            if args.min_words is not None:
+                generator_kwargs['min_words'] = args.min_words
+            if args.max_words is not None:
+                generator_kwargs['max_words'] = args.max_words
+
+            logging.info(f"Hidden word length set to: {args.hidden_length}")
+            if args.min_words:
+                logging.info(f"Minimum intersecting words: {args.min_words}")
+            if args.max_words:
+                logging.info(f"Maximum intersecting words: {args.max_words}")
+
         # Create the appropriate generator
         generator = create_generator(
             args.type,
             args.size,
             args.cell_size,
-            db_config
+            db_config,
+            **generator_kwargs
         )
 
         # Set max attempts if different from default
