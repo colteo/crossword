@@ -19,8 +19,7 @@ def main():
         generator = HiddenWordAGenerator(
             grid_size=15,
             cell_size=75,
-            db_config=db_config,
-            max_attempts=3
+            db_config=db_config
         )
 
         # Genera il cruciverba
