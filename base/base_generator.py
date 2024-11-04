@@ -16,12 +16,6 @@ class BaseCrosswordGenerator(ABC):
     def __init__(self, grid_size=15, cell_size=75, db_config=None, max_attempts=3):
         """
         Inizializza il generatore di cruciverba
-
-        Args:
-            grid_size (int): Dimensione della griglia
-            cell_size (int): Dimensione di ogni cella in pixel
-            db_config (dict): Configurazione del database
-            max_attempts (int): Numero massimo di tentativi di generazione
         """
         self.grid_size = grid_size
         self.cell_size = cell_size
@@ -33,11 +27,28 @@ class BaseCrosswordGenerator(ABC):
         self.guid = uuid.uuid4()
         self.timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-        self.output_dir = os.path.join("output", f"{self.timestamp}-{self.guid}")
-        os.makedirs(self.output_dir, exist_ok=True)
+        # Ottieni il percorso assoluto della directory root del progetto
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        # Crea il percorso assoluto per la directory output
+        self.output_dir = os.path.join(project_root, "output", f"{self.timestamp}-{self.guid}")
+
+        # Aggiungi debug print
+        print(f"Project root: {project_root}")
+        print(f"Creating output directory: {self.output_dir}")
+
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            print(f"Output directory created successfully")
+        except Exception as e:
+            print(f"Error creating output directory: {str(e)}")
+            raise
 
         logging.basicConfig(
-            filename=os.path.join(self.output_dir, 'crossword.log'),
+            handlers=[
+                logging.FileHandler(os.path.join(self.output_dir, 'crossword.log')),
+                logging.StreamHandler()  # Aggiunge output anche sulla console
+            ],
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
