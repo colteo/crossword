@@ -163,3 +163,98 @@ Per segnalare bug o richiedere nuove funzionalità, utilizzare il sistema di Iss
 ## 📄 Licenza
 
 Questo progetto è distribuito sotto licenza MIT. Vedere il file `LICENSE` per i dettagli.
+
+## Esempi Base per Cruciverba Standard Tipo A (Layout Orizzontale)
+### ------------------------------------------------------
+### Dimensione standard
+python main.py -t type_a -s 15
+
+### Dimensione personalizzata piccola
+python main.py -t type_a -s 10 --cell-size 50
+
+### Dimensione grande con celle grandi
+python main.py -t type_a -s 20 --cell-size 100
+
+### Con output verboso per debugging
+python main.py -t type_a -s 15 -v
+
+### Con numero massimo di tentativi personalizzato
+python main.py -t type_a -s 15 --max-attempts 5
+
+
+## Esempi per Cruciverba Standard Tipo B (Layout Verticale)
+### ------------------------------------------------------
+### Configurazione base
+python main.py -t type_b -s 15
+
+### Versione compatta
+python main.py -t type_b -s 12 --cell-size 60
+
+### Versione grande con debugging
+python main.py -t type_b -s 25 -v --max-attempts 4
+
+### Con celle molto piccole per display compatti
+python main.py -t type_b -s 15 --cell-size 40
+
+
+## Esempi per Cruciverba Standard Tipo C (Layout Misto)
+### ------------------------------------------------------
+### Configurazione standard
+python main.py -t type_c -s 15
+
+### Versione ottimizzata per stampa
+python main.py -t type_c -s 15 --cell-size 90
+
+### Versione grande con molti tentativi
+python main.py -t type_c -s 30 --max-attempts 6 -v
+
+### Versione compatta per test
+python main.py -t type_c -s 8 --cell-size 45
+
+
+## Esempi per Cruciverba con Parola Nascosta
+### ------------------------------------------------------
+### Configurazione base
+python main.py -t hidden --hidden-length 8 --min-words 6 --max-words 10
+
+### Versione con molte parole intersecanti
+python main.py -t hidden --hidden-length 10 --min-words 8 --max-words 15
+
+### Versione compatta
+python main.py -t hidden --hidden-length 6 --min-words 4 --max-words 8 --cell-size 50
+
+### Versione grande con debugging
+python main.py -t hidden --hidden-length 12 --min-words 10 --max-words 20 -v
+
+### Versione ottimizzata per difficoltà media
+python main.py -t hidden --hidden-length 8 --min-words 7 --max-words 12 --cell-size 80
+
+
+## Esempi con Combinazioni di Parametri Avanzate
+### ------------------------------------------------------
+### Tipo A con tutti i parametri personalizzati
+python main.py -t type_a -s 18 --cell-size 85 --max-attempts 4 -v
+
+### Tipo B ottimizzato per performance
+python main.py -t type_b -s 15 --cell-size 70 --max-attempts 2
+
+### Tipo C per grandi display
+python main.py -t type_c -s 25 --cell-size 120 --max-attempts 5 -v
+
+### Parola nascosta complessa
+python main.py -t hidden --hidden-length 15 --min-words 12 --max-words 25 --cell-size 95 -v --max-attempts 8
+
+
+## Esempi per Casi Speciali
+### ------------------------------------------------------
+### Generazione rapida per test
+python main.py -t type_a -s 8 --cell-size 40 --max-attempts 1
+
+### Generazione ottimizzata per stampa professionale
+python main.py -t type_b -s 20 --cell-size 150 --max-attempts 3
+
+### Generazione per display ad alta risoluzione
+python main.py -t type_c -s 30 --cell-size 200 -v
+
+### Parola nascosta per bambini (più semplice)
+python main.py -t hidden --hidden-length 5 --min-words 3 --max-words 6 --cell-size 100
