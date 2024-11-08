@@ -197,14 +197,17 @@ class BaseCrosswordGenerator(ABC):
         per la ricostruzione.
         """
         crossword_data = {
-            'metadata': {
-                'guid': str(self.guid),
-                'timestamp': self.timestamp,
-                'grid_size': self.grid_size,
-                'cell_size': self.cell_size
-            },
-            'grid': self.grid,
-            'words': [word.to_dict() for word in self.placed_words]
+            'crossword_data': {
+                'metadata': {
+                    'guid': str(self.guid),
+                    'timestamp': self.timestamp,
+                    'grid_size': self.grid_size,
+                    'cell_size': self.cell_size
+                },
+                'crossword_type': self.get_crossword_type(),
+                'grid': self.grid,
+                'words': [word.to_dict() for word in self.placed_words]
+            }
         }
 
         json_file = os.path.join(self.output_dir, 'crossword.json')
@@ -289,3 +292,7 @@ class BaseCrosswordGenerator(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_crossword_type(self) -> str:
+        """Returns the type identifier for this crossword generator."""
+        pass

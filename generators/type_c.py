@@ -11,6 +11,9 @@ class TypeCCrossword(PuzzleCrosswordGenerator):
     con vincoli specifici per le intersezioni.
     """
 
+    def get_crossword_type(self) -> str:
+        return "type-c"
+
     def place_first_word(self) -> bool:
         """
         Posiziona la prima parola al centro della griglia orizzontalmente.

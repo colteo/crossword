@@ -10,6 +10,9 @@ class TypeBCrossword(PuzzleCrosswordGenerator):
     La prima parola viene posizionata verticalmente al centro della griglia.
     """
 
+    def get_crossword_type(self) -> str:
+        return "type-b"
+
     def place_first_word(self) -> bool:
         """
         Posiziona la prima parola verticalmente al centro della griglia.
