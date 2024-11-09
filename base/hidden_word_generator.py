@@ -120,25 +120,27 @@ class HiddenWordGenerator(BaseCrosswordGenerator):
         Salva il cruciverba in formato JSON con informazioni specifiche per il tipo hidden word.
         """
         crossword_data = {
-            'metadata': {
-                'guid': str(self.guid),
-                'timestamp': self.timestamp,
-                'grid_size': self.grid_size,
-                'cell_size': self.cell_size,
-                'type': 'hidden_word'
-            },
-            'hidden_word': {
-                'word': self.hidden_word,
-                'column': self.key_column
-            },
-            'grid': self.grid,
-            'words': [{
-                **word.to_dict(),
-                'intersection': {
-                    'position': self.key_column - word.x,
-                    'letter': word.text[self.key_column - word.x]
-                }
-            } for word in self.placed_words]
+            'crossword_data': {
+                'metadata': {
+                    'guid': str(self.guid),
+                    'timestamp': self.timestamp,
+                    'grid_size': self.grid_size,
+                    'cell_size': self.cell_size
+                },
+                'crossword_type': self.get_crossword_type(),
+                'hidden_word': {
+                    'word': self.hidden_word,
+                    'column': self.key_column
+                },
+                'grid': self.grid,
+                'words': [{
+                    **word.to_dict(),
+                    'intersection': {
+                        'position': self.key_column - word.x,
+                        'letter': word.text[self.key_column - word.x]
+                    }
+                } for word in self.placed_words]
+            }
         }
 
         json_file = os.path.join(self.output_dir, 'crossword.json')
