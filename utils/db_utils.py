@@ -13,9 +13,12 @@ class DatabaseUtils:
             cursor = connection.cursor(dictionary=True)
 
             query = """
-            SELECT solution, clue, word_pattern, num_words 
-            FROM crossword_entries
-            WHERE LENGTH(solution) <= %s
+            SELECT c.id, c.solution, c.clue, c.word_pattern, c.num_words,
+                   COALESCE(cu.count, 0) as usage_count
+            FROM clues c
+            LEFT JOIN clues_usage cu ON c.id = cu.clue_id
+            WHERE LENGTH(c.solution) <= %s
+            ORDER BY COALESCE(cu.count, 0) ASC, RAND()
             """
             cursor.execute(query, (grid_size,))
             word_list = cursor.fetchall()
@@ -28,6 +31,36 @@ class DatabaseUtils:
 
         except mysql.connector.Error as err:
             logging.error(f"Database error: {err}")
+            raise
+
+    @staticmethod
+    def update_word_usage(db_config: Dict, clue_id: int) -> None:
+        """
+        Aggiorna il contatore di utilizzo per una specifica clue.
+        """
+        try:
+            connection = mysql.connector.connect(**db_config)
+            cursor = connection.cursor()
+
+            # Prima prova ad aggiornare il contatore se esiste
+            update_query = """
+                INSERT INTO clues_usage (clue_id, count, last_used)
+                VALUES (%s, 1, CURRENT_TIMESTAMP)
+                ON DUPLICATE KEY UPDATE 
+                    count = count + 1,
+                    last_used = CURRENT_TIMESTAMP
+                """
+
+            cursor.execute(update_query, (clue_id,))
+            connection.commit()
+
+            cursor.close()
+            connection.close()
+
+            logging.info(f"Updated usage count for clue_id: {clue_id}")
+
+        except mysql.connector.Error as err:
+            logging.error(f"Database error updating usage: {err}")
             raise
 
     @staticmethod

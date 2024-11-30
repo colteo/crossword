@@ -128,6 +128,14 @@ class BaseCrosswordGenerator(ABC):
             word_info['num_words']
         ))
 
+        # Aggiorna il contatore di utilizzo
+        try:
+            DatabaseUtils.update_word_usage(self.db_config, word_info['id'])
+        except Exception as e:
+            logging.error(f"Failed to update word usage for {word}: {str(e)}")
+            # Continuiamo anche se l'aggiornamento fallisce
+            pass
+
         logging.info(f"Placed word: {word} at ({start_row}, {start_col}), vertical={vertical}")
         return True
 
